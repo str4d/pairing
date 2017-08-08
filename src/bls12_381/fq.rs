@@ -21,6 +21,12 @@ const R2: FqRepr = FqRepr([0xf4df1f341c341746, 0xa76e6a609d104f1, 0x8de5476c4c95
 // INV = -(q^{-1} mod q) mod q
 const INV: u64 = 0x89f3fffcfffcfffd;
 
+// C1 = sqrt(-3) mod q = 1586958781458431025242759403266842894121773480562120986020912974854563298150952611241517463240701
+pub const C1: Fq = Fq(FqRepr([0x1dec6c36f3181f22, 0xb4b9bb641054b457, 0x25695a2be9415286, 0x982b6cbf66c749bc, 0x7d58e1ae1feb7873, 0x62c96300937c0b9]));
+
+// C2 = (C1 - 1) / 2 mod q = 793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350
+pub const C2: Fq = Fq(FqRepr([0x30f1361b798a64e8, 0xf3b8ddab7ece5a2a, 0x16a8ca3ac61577f7, 0xc26a2ff874fd029b, 0x3636b76660701c6e, 0x51ba4ab241b6160]));
+
 // GENERATOR = 2 (multiplicative generator of q-1 order, that is also quadratic nonresidue)
 const GENERATOR: FqRepr = FqRepr([0x321300000006554f, 0xb93c0018d6c40005, 0x57605e0db0ddbb51, 0x8b256521ed1f9bcb, 0x6cf28d7901622c03, 0x11ebab9dbb81e28c]);
 
@@ -839,9 +845,8 @@ impl LegendreField for Fq {
     fn legendre(&self) -> i32 {
         // (q - 1) / 2 =
         // 2001204777610833696708894912867952078278441409969503942666029068062015825245418932221343814564507832018947136279893
-        let x = self.pow([0xcff7fffffffd555, 0xf55ffff58a9ffffd,
-                          0x39869507b587b120, 0x23ba5c279c2895fb,
-                          0x58dd3db21a5d66bb, 0xd0088f51cbff34d2]);
+        let x = self.pow([0xcff7fffffffd555, 0xf55ffff58a9ffffd, 0x39869507b587b120,
+                          0x23ba5c279c2895fb, 0x58dd3db21a5d66bb, 0xd0088f51cbff34d2]);
         if x == Self::one() {
             1
         } else if x == Self::zero() {
@@ -855,6 +860,22 @@ impl LegendreField for Fq {
 #[test]
 fn test_b_coeff() {
     assert_eq!(Fq::from_repr(FqRepr::from(4)).unwrap(), B_COEFF);
+}
+
+#[test]
+fn test_hash_consts() {
+    // c1 = sqrt(-3)
+    let mut c1 = Fq::zero();
+    for _ in 0..3 {
+        c1.sub_assign(&Fq::one())
+    }
+    let c1 = c1.sqrt().unwrap();
+    assert_eq!(c1, C1);
+
+    let mut expected = C2;
+    expected.add_assign(&C2);
+    expected.add_assign(&Fq::one());
+    assert_eq!(C1, expected);
 }
 
 #[test]
@@ -1323,12 +1344,12 @@ fn test_fq_sub_assign() {
         let mut tmp = Fq(FqRepr([0x531221a410efc95b, 0x72819306027e9717, 0x5ecefb937068b746, 0x97de59cd6feaefd7, 0xdc35c51158644588, 0xb2d176c04f2100]));
         tmp.sub_assign(&Fq(FqRepr([0x98910d20877e4ada, 0x940c983013f4b8ba, 0xf677dc9b8345ba33, 0xbef2ce6b7f577eba, 0xe1ae288ac3222c44, 0x5968bb602790806])));
         assert_eq!(tmp, Fq(FqRepr([0x748014838971292c, 0xfd20fad49fddde5c, 0xcf87f198e3d3f336, 0x3d62d6e6e41883db, 0x45a3443cd88dc61b, 0x151d57aaf755ff94])));
-        
+
         // Test the opposite subtraction which doesn't test reduction.
         tmp = Fq(FqRepr([0x98910d20877e4ada, 0x940c983013f4b8ba, 0xf677dc9b8345ba33, 0xbef2ce6b7f577eba, 0xe1ae288ac3222c44, 0x5968bb602790806]));
         tmp.sub_assign(&Fq(FqRepr([0x531221a410efc95b, 0x72819306027e9717, 0x5ecefb937068b746, 0x97de59cd6feaefd7, 0xdc35c51158644588, 0xb2d176c04f2100])));
         assert_eq!(tmp, Fq(FqRepr([0x457eeb7c768e817f, 0x218b052a117621a3, 0x97a8e10812dd02ed, 0x2714749e0f6c8ee3, 0x57863796abde6bc, 0x4e3ba3f4229e706])));
-        
+
         // Test for sensible results with zero
         tmp = Fq(FqRepr::from(0));
         tmp.sub_assign(&Fq(FqRepr::from(0)));

@@ -52,10 +52,10 @@ pub trait Engine: Sized {
     type G2Affine: CurveAffine<Engine=Self, Base=Self::Fqe, Scalar=Self::Fr, Projective=Self::G2, Pair=Self::G1Affine, PairingResult=Self::Fqk> + From<Self::G2>;
 
     /// The base field that hosts G1.
-    type Fq: PrimeField + SqrtField;
+    type Fq: PrimeField + SqrtField + LegendreField;
 
     /// The extension field that hosts G2.
-    type Fqe: SqrtField;
+    type Fqe: SqrtField + LegendreField;
 
     /// The extension field that hosts the target group of the pairing.
     type Fqk: Field;
@@ -214,6 +214,9 @@ pub trait CurveAffine: Copy +
     fn into_uncompressed(&self) -> Self::Uncompressed {
         <Self::Uncompressed as EncodedPoint>::from_affine(*self)
     }
+
+    /// Hash into this curve
+    fn hash(x : Self::Base) -> Self;
 }
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.

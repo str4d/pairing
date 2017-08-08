@@ -84,29 +84,6 @@ macro_rules! curve_impl {
             }
         }
 
-        impl $affine {
-            fn is_on_curve(&self) -> bool {
-                if self.is_zero() {
-                    true
-                } else {
-                    // Check that the point is on the curve
-                    let mut y2 = self.y;
-                    y2.square();
-
-                    let mut x3b = self.x;
-                    x3b.square();
-                    x3b.mul_assign(&self.x);
-                    x3b.add_assign(&Self::get_coeff_b());
-
-                    y2 == x3b
-                }
-            }
-
-            fn is_in_correct_subgroup(&self) -> bool {
-                self.mul($scalarfield::char()).is_zero()
-            }
-        }
-
         impl CurveAffine for $affine {
             type Engine = Bls12;
             type Scalar = $scalarfield;
@@ -166,11 +143,68 @@ macro_rules! curve_impl {
             fn into_projective(&self) -> $projective {
                 (*self).into()
             }
+
+            fn hash(t: Self::Base) -> Self
+            {
+                // w = (t^2 + b + 1)^(-1) * sqrt(-3) * t
+                let mut w = t;
+                w.square();
+                w.add_assign(&Self::get_coeff_b());
+                w.add_assign(&Self::Base::one());
+                w = w.inverse().unwrap();
+                w.mul_assign(&Self::get_c1());
+                w.mul_assign(&t);
+
+                let mut x = w;
+                for i in 0..3 {
+                    match i {
+                        0 =>  { x.mul_assign(&t); x.negate(); x.add_assign(&Self::get_c2()) },
+                        1 =>  {                   x.negate(); x.sub_assign(&Self::Base::one()) },
+                        2 =>  { x=w; x.square();  x = x.inverse().unwrap(); x.add_assign(&Self::Base::one()) },
+                        _ =>  {}
+                    }
+
+                    if let Some(mut y) = Self::y2_from_x(x).sqrt() {
+                        if t.legendre() < 0 { y.negate() }
+                        return Self {x: x, y: y, infinity: false}
+                    }
+
+                }
+                Self {x: Self::Base::zero(), y: Self::Base::zero(), infinity: true }
+            }
+
         }
 
         impl Rand for $projective {
             fn rand<R: Rng>(rng: &mut R) -> Self {
                 $affine::one().mul($scalarfield::rand(rng))
+            }
+        }
+
+        impl $affine {
+
+            fn y2_from_x(x: $basefield) -> $basefield {
+                let mut y2 = x.clone();
+                y2.square();
+                y2.mul_assign(&x);
+                y2.add_assign(&Self::get_coeff_b());
+                y2
+            }
+
+            fn is_on_curve(&self) -> bool {
+                if self.is_zero() {
+                    true
+                } else {
+                    // Check that the point is on the curve
+                    let mut y2 = self.y;
+                    y2.square();
+
+                    y2 == $affine::y2_from_x(self.x)
+                }
+            }
+
+            fn is_in_correct_subgroup(&self) -> bool {
+                self.mul($scalarfield::char()).is_zero()
             }
         }
 
@@ -585,7 +619,7 @@ pub mod g1 {
     use rand::{Rand, Rng};
     use super::g2::G2Affine;
     use super::super::{Bls12, Fq, Fr, FrRepr, FqRepr, Fq12};
-    use ::{CurveProjective, CurveAffine, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
+    use ::{CurveProjective, CurveAffine, LegendreField, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
 
     curve_impl!("G1", G1, G1Affine, G1Prepared, Fq, Fr, G1Uncompressed, G1Compressed, G2Affine);
 
@@ -837,6 +871,14 @@ pub mod g1 {
 
         fn get_coeff_b() -> Fq {
             super::super::fq::B_COEFF
+        }
+
+        fn get_c1() -> Fq {
+            super::super::fq::C1
+        }
+
+        fn get_c2() -> Fq {
+            super::super::fq::C2
         }
 
         fn perform_pairing(&self, other: &G2Affine) -> Fq12 {
@@ -1138,7 +1180,7 @@ pub mod g2 {
     use rand::{Rand, Rng};
     use super::super::{Bls12, Fq2, Fr, Fq, FrRepr, FqRepr, Fq12};
     use super::g1::G1Affine;
-    use ::{CurveProjective, CurveAffine, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
+    use ::{CurveProjective, CurveAffine, LegendreField, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
 
     curve_impl!("G2", G2, G2Affine, G2Prepared, Fq2, Fr, G2Uncompressed, G2Compressed, G1Affine);
 
@@ -1419,6 +1461,20 @@ pub mod g2 {
             }
         }
 
+        fn get_c1() -> Fq2 {
+            Fq2 {
+                c0: super::super::fq::C1,
+                c1: Fq::zero()
+            }
+        }
+
+        fn get_c2() -> Fq2 {
+            Fq2 {
+                c0: super::super::fq::C2,
+                c1: Fq::zero()
+            }
+        }
+
         fn perform_pairing(&self, other: &G1Affine) -> Fq12 {
             super::super::Bls12::pairing(*other, *self)
         }
@@ -1480,7 +1536,7 @@ pub mod g2 {
             if let Some(y) = rhs.sqrt() {
                 let mut negy = y;
                 negy.negate();
-                
+
                 let p = G2Affine {
                     x: x,
                     y: if y < negy { y } else { negy },
