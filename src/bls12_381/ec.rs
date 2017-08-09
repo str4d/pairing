@@ -146,6 +146,8 @@ macro_rules! curve_impl {
 
             fn hash(t: Self::Base) -> Self
             {
+                use ::LegendreSymbol::*;
+
                 // w = (t^2 + b + 1)^(-1) * sqrt(-3) * t
                 let mut w = t;
                 w.square();
@@ -165,7 +167,7 @@ macro_rules! curve_impl {
                     }
 
                     if let Some(mut y) = Self::y2_from_x(x).sqrt() {
-                        if t.legendre() < 0 { y.negate() }
+                        if let QNonResidue = t.legendre() { y.negate() }
                         return Self {x: x, y: y, infinity: false}
                     }
 
