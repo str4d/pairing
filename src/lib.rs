@@ -52,10 +52,10 @@ pub trait Engine: Sized {
     type G2Affine: CurveAffine<Engine=Self, Base=Self::Fqe, Scalar=Self::Fr, Projective=Self::G2, Pair=Self::G1Affine, PairingResult=Self::Fqk> + From<Self::G2>;
 
     /// The base field that hosts G1.
-    type Fq: PrimeField + SqrtField + LegendreField;
+    type Fq: PrimeField + SqrtField;
 
     /// The extension field that hosts G2.
-    type Fqe: SqrtField + LegendreField;
+    type Fqe: SqrtField;
 
     /// The extension field that hosts the target group of the pairing.
     type Fqk: Field;
@@ -328,16 +328,12 @@ pub trait Field: Sized +
 /// This trait represents an element of a field that has a square root operation described for it.
 pub trait SqrtField: Field
 {
+    /// Returns the legendre symbol of the field element.
+    fn legendre(&self) -> LegendreSymbol;
+
     /// Returns the square root of the field element, if it is
     /// quadratic residue.
     fn sqrt(&self) -> Option<Self>;
-}
-
-/// This trait represents an element of a field that has a Legendre symbol described for it.
-pub trait LegendreField: Field
-{
-    /// Returns the legendre symbol of the field element.
-    fn legendre(&self) -> LegendreSymbol;
 }
 
 

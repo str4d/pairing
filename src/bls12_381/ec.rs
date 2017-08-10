@@ -621,7 +621,7 @@ pub mod g1 {
     use rand::{Rand, Rng};
     use super::g2::G2Affine;
     use super::super::{Bls12, Fq, Fr, FrRepr, FqRepr, Fq12};
-    use ::{CurveProjective, CurveAffine, LegendreField, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
+    use ::{CurveProjective, CurveAffine, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
 
     curve_impl!("G1", G1, G1Affine, G1Prepared, Fq, Fr, G1Uncompressed, G1Compressed, G2Affine);
 
@@ -1182,7 +1182,7 @@ pub mod g2 {
     use rand::{Rand, Rng};
     use super::super::{Bls12, Fq2, Fr, Fq, FrRepr, FqRepr, Fq12};
     use super::g1::G1Affine;
-    use ::{CurveProjective, CurveAffine, LegendreField, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
+    use ::{CurveProjective, CurveAffine, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
 
     curve_impl!("G2", G2, G2Affine, G2Prepared, Fq2, Fr, G2Uncompressed, G2Compressed, G1Affine);
 
