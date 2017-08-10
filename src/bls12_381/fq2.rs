@@ -577,7 +577,7 @@ fn bench_fq2_sqrt(b: &mut ::test::Bencher) {
 #[test]
 fn fq2_field_tests() {
     use ::PrimeField;
-    
+
     ::tests::field::random_field_tests::<Fq2>();
     ::tests::field::random_sqrt_tests::<Fq2>();
     ::tests::field::random_frobenius_tests::<Fq2, _>(super::fq::Fq::char(), 13);

@@ -168,7 +168,8 @@ macro_rules! curve_impl {
 
                     if let Some(mut y) = Self::y2_from_x(x).sqrt() {
                         if let QNonResidue = t.legendre() { y.negate() }
-                        return Self {x: x, y: y, infinity: false}
+                        let p = Self {x: x, y: y, infinity: false};
+                        return p.mul(Self::get_cofactor()).into_affine()
                     }
 
                 }
@@ -863,6 +864,11 @@ pub mod g1 {
     }
 
     impl G1Affine {
+
+        fn get_cofactor() -> Fr {
+            super::super::fr::G1_COFACTOR
+        }
+
         fn get_generator() -> Self {
             G1Affine {
                 x: super::super::fq::G1_GENERATOR_X,
@@ -1121,6 +1127,18 @@ pub mod g1 {
     #[test]
     fn g1_curve_tests() {
         ::tests::curve::curve_tests::<G1>();
+    }
+
+    #[test]
+    fn g1_test_hash() {
+        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+        for _ in 0 .. 100 {
+            let t = Fq::rand(&mut rng);
+            let p = G1Affine::hash(t);
+            assert!(G1Affine::is_on_curve(&p));
+            assert!(p.is_in_correct_subgroup());
+        }
     }
 
     #[cfg(test)]
@@ -1477,6 +1495,10 @@ pub mod g2 {
             }
         }
 
+        fn get_cofactor() -> Fr {
+            super::super::fr::G2_COFACTOR
+        }
+
         fn perform_pairing(&self, other: &G1Affine) -> Fq12 {
             super::super::Bls12::pairing(*other, *self)
         }
@@ -1709,6 +1731,17 @@ pub mod g2 {
     #[test]
     fn g2_curve_tests() {
         ::tests::curve::curve_tests::<G2>();
+    }
+
+    #[test]
+    fn g2_test_hash() {
+        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+        for _ in 0 .. 100 {
+            let t = Fq2::rand(&mut rng);
+            let p = G2Affine::hash(t);
+            assert!(p.is_in_correct_subgroup());
+        }
     }
 
     #[cfg(test)]
