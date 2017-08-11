@@ -21,6 +21,14 @@ const R2: FqRepr = FqRepr([0xf4df1f341c341746, 0xa76e6a609d104f1, 0x8de5476c4c95
 // INV = -(q^{-1} mod q) mod q
 const INV: u64 = 0x89f3fffcfffcfffd;
 
+// SWENC_CONST0 = sqrt(-3) mod q =
+// 1586958781458431025242759403266842894121773480562120986020912974854563298150952611241517463240701
+pub const SWENC_CONST0: Fq = Fq(FqRepr([0x1dec6c36f3181f22, 0xb4b9bb641054b457, 0x25695a2be9415286, 0x982b6cbf66c749bc, 0x7d58e1ae1feb7873, 0x62c96300937c0b9]));
+
+// SWENC_CONST1 = (SWENC_CONST0 - 1) / 2 mod q =
+// 793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350
+pub const SWENC_CONST1: Fq = Fq(FqRepr([0x30f1361b798a64e8, 0xf3b8ddab7ece5a2a, 0x16a8ca3ac61577f7, 0xc26a2ff874fd029b, 0x3636b76660701c6e, 0x51ba4ab241b6160]));
+
 // GENERATOR = 2 (multiplicative generator of q-1 order, that is also quadratic nonresidue)
 const GENERATOR: FqRepr = FqRepr([0x321300000006554f, 0xb93c0018d6c40005, 0x57605e0db0ddbb51, 0x8b256521ed1f9bcb, 0x6cf28d7901622c03, 0x11ebab9dbb81e28c]);
 
@@ -812,6 +820,18 @@ impl Fq {
 }
 
 impl SqrtField for Fq {
+
+    fn legendre(&self) -> ::LegendreSymbol {
+        use ::LegendreSymbol::*;
+
+        // s = self^((q - 1) // 2)
+        let s = self.pow([0xdcff7fffffffd555, 0xf55ffff58a9ffff, 0xb39869507b587b12,
+                          0xb23ba5c279c2895f, 0x258dd3db21a5d66b, 0xd0088f51cbff34d]);
+        if s == Fq::zero() { Zero }
+        else if s == Fq::one() { QResidue }
+        else { QNonResidue }
+    }
+
     fn sqrt(&self) -> Option<Self> {
         // Shank's algorithm for q mod 4 = 3
         // https://eprint.iacr.org/2012/685.pdf (page 9, algorithm 2)
@@ -835,9 +855,25 @@ impl SqrtField for Fq {
     }
 }
 
+
 #[test]
 fn test_b_coeff() {
     assert_eq!(Fq::from_repr(FqRepr::from(4)).unwrap(), B_COEFF);
+}
+
+#[test]
+fn test_hash_consts() {
+    // c0 = sqrt(-3)
+    let mut c0 = Fq::from_repr(FqRepr::from(3)).unwrap();
+    c0.negate();
+    let c0 = c0.sqrt().unwrap();
+    assert_eq!(c0, SWENC_CONST0);
+
+    // c2 = (sqrt(-3) - 1) / 2
+    let mut expected = SWENC_CONST1;
+    expected.add_assign(&SWENC_CONST1);
+    expected.add_assign(&Fq::one());
+    assert_eq!(SWENC_CONST0, expected);
 }
 
 #[test]
@@ -1306,12 +1342,12 @@ fn test_fq_sub_assign() {
         let mut tmp = Fq(FqRepr([0x531221a410efc95b, 0x72819306027e9717, 0x5ecefb937068b746, 0x97de59cd6feaefd7, 0xdc35c51158644588, 0xb2d176c04f2100]));
         tmp.sub_assign(&Fq(FqRepr([0x98910d20877e4ada, 0x940c983013f4b8ba, 0xf677dc9b8345ba33, 0xbef2ce6b7f577eba, 0xe1ae288ac3222c44, 0x5968bb602790806])));
         assert_eq!(tmp, Fq(FqRepr([0x748014838971292c, 0xfd20fad49fddde5c, 0xcf87f198e3d3f336, 0x3d62d6e6e41883db, 0x45a3443cd88dc61b, 0x151d57aaf755ff94])));
-        
+
         // Test the opposite subtraction which doesn't test reduction.
         tmp = Fq(FqRepr([0x98910d20877e4ada, 0x940c983013f4b8ba, 0xf677dc9b8345ba33, 0xbef2ce6b7f577eba, 0xe1ae288ac3222c44, 0x5968bb602790806]));
         tmp.sub_assign(&Fq(FqRepr([0x531221a410efc95b, 0x72819306027e9717, 0x5ecefb937068b746, 0x97de59cd6feaefd7, 0xdc35c51158644588, 0xb2d176c04f2100])));
         assert_eq!(tmp, Fq(FqRepr([0x457eeb7c768e817f, 0x218b052a117621a3, 0x97a8e10812dd02ed, 0x2714749e0f6c8ee3, 0x57863796abde6bc, 0x4e3ba3f4229e706])));
-        
+
         // Test for sensible results with zero
         tmp = Fq(FqRepr::from(0));
         tmp.sub_assign(&Fq(FqRepr::from(0)));
@@ -1781,4 +1817,22 @@ fn test_fq_ordering() {
 #[test]
 fn fq_repr_tests() {
     ::tests::repr::random_repr_tests::<FqRepr>();
+}
+
+#[test]
+fn test_fq_legendre() {
+    use ::LegendreSymbol::*;
+
+    assert_eq!(QResidue, Fq::one().legendre());
+    assert_eq!(Zero, Fq::zero().legendre());
+
+    assert_eq!(QNonResidue, Fq::from_repr(FqRepr::from(2)).unwrap().legendre());
+    assert_eq!(QResidue, Fq::from_repr(FqRepr::from(4)).unwrap().legendre());
+
+    let e = FqRepr([0x52a112f249778642, 0xd0bedb989b7991f, 0xdad3b6681aa63c05,
+                    0xf2efc0bb4721b283, 0x6057a98f18c24733, 0x1022c2fd122889e4]);
+    assert_eq!(QNonResidue, Fq::from_repr(e).unwrap().legendre());
+    let e = FqRepr([0x6dae594e53a96c74, 0x19b16ca9ba64b37b, 0x5c764661a59bfc68,
+                    0xaa346e9b31c60a, 0x346059f9d87a9fa9, 0x1d61ac6bfd5c88b]);
+    assert_eq!(QResidue, Fq::from_repr(e).unwrap().legendre());
 }

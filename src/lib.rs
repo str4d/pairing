@@ -214,6 +214,15 @@ pub trait CurveAffine: Copy +
     fn into_uncompressed(&self) -> Self::Uncompressed {
         <Self::Uncompressed as EncodedPoint>::from_affine(*self)
     }
+
+    /// Encodes a point in the base field into the curve using SW encoding.
+    /// This function implements P-A Foque and M Tibouchi's
+    /// "Indifferentiable Hashing to Barreto–Naehrig Curves".
+    ///
+    /// XXX. This function simply provides the well-distributed encoding as
+    /// provided in the paper; it (still?) needs to be combined with a hash
+    /// function to the base field to properly act as a random oracle.
+    fn hash(x : Self::Base) -> Self;
 }
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.
@@ -325,10 +334,14 @@ pub trait Field: Sized +
 /// This trait represents an element of a field that has a square root operation described for it.
 pub trait SqrtField: Field
 {
+    /// Returns the Legendre symbol of the field element.
+    fn legendre(&self) -> LegendreSymbol;
+
     /// Returns the square root of the field element, if it is
     /// quadratic residue.
     fn sqrt(&self) -> Option<Self>;
 }
+
 
 /// This trait represents a wrapper around a biginteger which can encode any element of a particular
 /// prime field. It is a smart wrapper around a sequence of `u64` limbs, least-significant digit
@@ -405,6 +418,13 @@ pub trait PrimeFieldRepr: Sized +
 
         Ok(())
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LegendreSymbol {
+    Zero = 0,
+    QResidue = 1,
+    QNonResidue = -1
 }
 
 /// An error that may occur when trying to interpret a `PrimeFieldRepr` as a
