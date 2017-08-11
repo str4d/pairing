@@ -215,7 +215,13 @@ pub trait CurveAffine: Copy +
         <Self::Uncompressed as EncodedPoint>::from_affine(*self)
     }
 
-    /// Hash into this curve
+    /// Encodes a point in the base field into the curve using SW encoding.
+    /// This function implements P-A Foque and M Tibouchi's
+    /// "Indifferentiable Hashing to Barreto–Naehrig Curves".
+    ///
+    /// XXX. This function simply provides the well-distributed encoding as
+    /// provided in the paper; it (still?) needs to be combined with a hash
+    /// function to the base field to properly act as a random oracle.
     fn hash(x : Self::Base) -> Self;
 }
 
@@ -328,7 +334,7 @@ pub trait Field: Sized +
 /// This trait represents an element of a field that has a square root operation described for it.
 pub trait SqrtField: Field
 {
-    /// Returns the legendre symbol of the field element.
+    /// Returns the Legendre symbol of the field element.
     fn legendre(&self) -> LegendreSymbol;
 
     /// Returns the square root of the field element, if it is

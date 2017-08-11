@@ -154,13 +154,13 @@ macro_rules! curve_impl {
                 w.add_assign(&Self::get_coeff_b());
                 w.add_assign(&Self::Base::one());
                 w = w.inverse().unwrap();
-                w.mul_assign(&Self::get_c1());
+                w.mul_assign(&Self::get_swenc_const0());
                 w.mul_assign(&t);
 
                 let mut x = w;
                 for i in 0..3 {
                     match i {
-                        0 =>  { x.mul_assign(&t); x.negate(); x.add_assign(&Self::get_c2()) },
+                        0 =>  { x.mul_assign(&t); x.negate(); x.add_assign(&Self::get_swenc_const1()) },
                         1 =>  {                   x.negate(); x.sub_assign(&Self::Base::one()) },
                         2 =>  { x=w; x.square();  x = x.inverse().unwrap(); x.add_assign(&Self::Base::one()) },
                         _ =>  {}
@@ -883,12 +883,12 @@ pub mod g1 {
             super::super::fq::B_COEFF
         }
 
-        fn get_c1() -> Fq {
-            super::super::fq::C1
+        fn get_swenc_const0() -> Fq {
+            super::super::fq::SWENC_CONST0
         }
 
-        fn get_c2() -> Fq {
-            super::super::fq::C2
+        fn get_swenc_const1() -> Fq {
+            super::super::fq::SWENC_CONST1
         }
 
         fn perform_pairing(&self, other: &G2Affine) -> Fq12 {
@@ -1465,16 +1465,16 @@ pub mod g2 {
             }
         }
 
-        fn get_c1() -> Fq2 {
+        fn get_swenc_const0() -> Fq2 {
             Fq2 {
-                c0: super::super::fq::C1,
+                c0: super::super::fq::SWENC_CONST0,
                 c1: Fq::zero()
             }
         }
 
-        fn get_c2() -> Fq2 {
+        fn get_swenc_const1() -> Fq2 {
             Fq2 {
-                c0: super::super::fq::C2,
+                c0: super::super::fq::SWENC_CONST1,
                 c1: Fq::zero()
             }
         }
