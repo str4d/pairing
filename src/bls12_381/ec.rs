@@ -169,7 +169,7 @@ macro_rules! curve_impl {
                     if let Some(mut y) = Self::y2_from_x(x).sqrt() {
                         if let QNonResidue = t.legendre() { y.negate() }
                         let p = Self {x: x, y: y, infinity: false};
-                        return p.mul(Self::get_cofactor()).into_affine()
+                        return p.into_subgroup()
                     }
 
                 }
@@ -865,8 +865,10 @@ pub mod g1 {
 
     impl G1Affine {
 
-        fn get_cofactor() -> Fr {
-            super::super::fr::G1_COFACTOR
+        /// Maps any curve point into the subgroup G1,
+        /// multiplying by the cofactor.
+        fn into_subgroup(&self) -> Self {
+            self.mul(super::super::fr::G1_COFACTOR).into_affine()
         }
 
         fn get_generator() -> Self {
@@ -965,31 +967,12 @@ pub mod g1 {
                     y: if yrepr < negyrepr { y } else { negy },
                     infinity: false
                 };
-
                 assert!(!p.is_in_correct_subgroup());
 
-                let mut g1 = G1::zero();
-
-                // Cofactor of G1 is 76329603384216526031706109802092473003.
-                // Calculated by: ((x-1)**2) // 3
-                // where x is the BLS parameter.
-                for b in "111001011011001000110000000000010101010101010111100001010101101000110000000000101010101010101100000000000000001010101010101011"
-                         .chars()
-                         .map(|c| c == '1')
-                {
-                    g1.double();
-
-                    if b {
-                        g1.add_assign_mixed(&p);
-                    }
-                }
-
+                let g1 = p.into_subgroup();
                 if !g1.is_zero() {
                     assert_eq!(i, 4);
-                    let g1 = G1Affine::from(g1);
-
                     assert!(g1.is_in_correct_subgroup());
-
                     assert_eq!(g1, G1Affine::one());
                     break;
                 }
@@ -1133,11 +1116,12 @@ pub mod g1 {
     fn g1_test_hash() {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        for _ in 0 .. 100 {
+        for _ in 0 .. 20 {
             let t = Fq::rand(&mut rng);
             let p = G1Affine::hash(t);
             assert!(G1Affine::is_on_curve(&p));
             assert!(p.is_in_correct_subgroup());
+            assert!(!p.is_zero());
         }
     }
 
@@ -1495,8 +1479,23 @@ pub mod g2 {
             }
         }
 
-        fn get_cofactor() -> Fr {
-            super::super::fr::G2_COFACTOR
+        /// Maps any elliptic curve point to the subgroup G2,
+        /// multiplying by the cofactor
+        fn into_subgroup(&self) -> Self {
+            // Cofactor of G2 is 305502333931268344200999753193121504214466019254188142667664032982267604182971884026507427359259977847832272839041616661285803823378372096355777062779109.
+            // Calculated by: ((x**8) - (4 * (x**7)) + (5 * (x**6)) - (4 * (x**4)) + (6 * (x**3)) - (4 * (x**2)) - (4*x) + 13) // 9
+            // where x is the BLS parameter.
+            let bits = "101110101010100001110101001010101000001010011100111111100010000100100011101010100000111100100101000011101101010001000000010110011011001000111011110010001010100011100001000010110101011101010100110100010100010000001011011001011100101101001111101110111111010011000101000111100011100101101001101100111101000001011101111001000010101001101111110001010010011101001100110100100011010111000010110000101101110110001101110011110000110111100001100011100001100111100011100001110001110001100011100011100100011100011100101"
+                .chars()
+                .map(|c| c == '1');
+
+            let mut res = G2::zero();
+            for b in bits {
+                res.double();
+                if b { res.add_assign_mixed(&self); }
+            }
+
+            res.into_affine()
         }
 
         fn perform_pairing(&self, other: &G1Affine) -> Fq12 {
@@ -1569,28 +1568,10 @@ pub mod g2 {
 
                 assert!(!p.is_in_correct_subgroup());
 
-                let mut g2 = G2::zero();
-
-                // Cofactor of G2 is 305502333931268344200999753193121504214466019254188142667664032982267604182971884026507427359259977847832272839041616661285803823378372096355777062779109.
-                // Calculated by: ((x**8) - (4 * (x**7)) + (5 * (x**6)) - (4 * (x**4)) + (6 * (x**3)) - (4 * (x**2)) - (4*x) + 13) // 9
-                // where x is the BLS parameter.
-                for b in "101110101010100001110101001010101000001010011100111111100010000100100011101010100000111100100101000011101101010001000000010110011011001000111011110010001010100011100001000010110101011101010100110100010100010000001011011001011100101101001111101110111111010011000101000111100011100101101001101100111101000001011101111001000010101001101111110001010010011101001100110100100011010111000010110000101101110110001101110011110000110111100001100011100001100111100011100001110001110001100011100011100100011100011100101"
-                         .chars()
-                         .map(|c| c == '1')
-                {
-                    g2.double();
-
-                    if b {
-                        g2.add_assign_mixed(&p);
-                    }
-                }
-
+                let g2 = p.into_subgroup();
                 if !g2.is_zero() {
                     assert_eq!(i, 2);
-                    let g2 = G2Affine::from(g2);
-
                     assert!(g2.is_in_correct_subgroup());
-
                     assert_eq!(g2, G2Affine::one());
                     break;
                 }
@@ -1737,7 +1718,7 @@ pub mod g2 {
     fn g2_test_hash() {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        for _ in 0 .. 100 {
+        for _ in 0 .. 20 {
             let t = Fq2::rand(&mut rng);
             let p = G2Affine::hash(t);
             assert!(p.is_in_correct_subgroup());

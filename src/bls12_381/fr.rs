@@ -20,9 +20,6 @@ const R2: FrRepr = FrRepr([0xc999e990f3f29c6d, 0x2b6cedcb87925c23, 0x5d314967254
 // G1 has cofactor  (x - 1)^2 / 3  = 76329603384216526031706109802092473003
 pub const G1_COFACTOR: Fr = Fr(FrRepr([0x31207728cdb90779, 0xffea90400320679a, 0xa479130bcc248091, 0x6d41ecdf98f9d8cc]));
 
-// G2 has cofactor (x^8 - 4x^7 + 5x^6 - 4x^4 + 6x^3 - 4x^2 - 4x + 13) / 9.
-pub const G2_COFACTOR: Fr = Fr(FrRepr([0x755c12a6851eb90e, 0xe117af10228fcb8c, 0xd67937ea756c9ced, 0x6dabbfa8c0fd834b]));
-
 // INV = -(r^{-1} mod r) mod r
 const INV: u64 = 0xfffffffeffffffff;
 
