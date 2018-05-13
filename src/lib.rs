@@ -430,6 +430,61 @@ pub trait PrimeFieldRepr:
 
         Ok(())
     }
+
+    /// Writes this `PrimeFieldRepr` as a VarInt.
+    fn write_varint<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        let mut count = false;
+        let mut digits_set = 0;
+        for digit in self.as_ref().iter().rev() {
+            if !count && *digit > 0 {
+                count = true;
+            }
+            if count {
+                digits_set += 1;
+            }
+        }
+
+        // Digit 1:
+        // | 1 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 |
+        // Digit 2:
+        // | 2 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 6 |
+        // Digit 3:
+        // | 3 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 5 |
+        // Digit 4:
+        // | 4 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 4 |
+        // Digit 5:
+        // | 5 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 3 |
+        // Digit 6:
+        // | 6 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 2 |
+        // Digit 7:
+        // | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 7 | 1 |
+
+        let mut carry = 0;
+        let mut round = 0;
+        for (i, digit) in self.as_ref().iter().enumerate() {
+            let mut n = (*digit << round) + carry;
+            carry = *digit >> (63 - round);
+
+            if i + 1 < digits_set {
+                for _ in 0..9 {
+                    writer.write(&[(1 << 7) | (n & 127) as u8])?;
+                    n >>= 7;
+                }
+            } else {
+                // Last digit
+                while n > 127 {
+                    writer.write(&[(1 << 7) | (n & 127) as u8])?;
+                    n >>= 7;
+                }
+                carry = n;
+                break;
+            }
+            round = (round + 1) % 7;
+        }
+        writer.write(&[(carry & 127) as u8])?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, PartialEq)]
